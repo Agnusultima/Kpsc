@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerala PSC Exam Practice App</title>
+    <!-- Include html2pdf library for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --correct: #16a34a;
+            --correct-bg: #dcfce7;
+            --wrong: #dc2626;
+            --wrong-bg: #fee2e2;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+
+        .score-bar {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .q-number {
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .q-text {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            line-height: 1.5;
+            white-space: pre-line;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: #ffffff;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .option-btn:disabled {
+            cursor: default;
+        }
+
+        /* Highlight States */
+        .option-btn.correct {
+            background-color: var(--correct-bg) !important;
+            border-color: var(--correct) !important;
+            color: #14532d;
+            font-weight: bold;
+        }
+
+        .option-btn.wrong {
+            background-color: var(--wrong-bg) !important;
+            border-color: var(--wrong) !important;
+            color: #7f1d1d;
+            font-weight: bold;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+        }
+
+        #result-screen {
+            display: none;
+        }
+
+        .summary-card {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .summary-score {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+
+        /* PDF Stylesheet Overrides */
+        .pdf-page {
+            font-size: 12px;
+            color: #000;
+        }
+        .pdf-q {
+            border-bottom: 1px solid #ccc;
+            padding: 8px 0;
+            page-break-inside: avoid;
+        }
+        .pdf-q-title {
+            font-weight: bold;
+        }
+        .pdf-ans {
+            margin-left: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Kerala PSC Practice Exam - MLA Hostel Assistant</h1>
+        <div class="score-bar">
+            <span>Attempted: <span id="stat-attempted">0</span>/100</span>
+            <span>Score: <span id="stat-score">0.00</span></span>
+        </div>
+    </header>
+
+    <!-- Quiz Section -->
+    <div id="quiz-screen">
+        <div class="card" id="question-card">
+            <div class="q-number" id="q-number">Question 1 of 100</div>
+            <div class="q-text" id="q-text">Loading question...</div>
+            <div class="options-grid" id="options-grid"></div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="prev-btn" onclick="navigate(-1)" disabled>Previous</button>
+            <button class="btn" id="next-btn" onclick="navigate(1)">Next</button>
+            <button class="btn" id="submit-btn" onclick="finishQuiz()" style="background:#059669; display:none;">Finish Exam</button>
+        </div>
+    </div>
+
+    <!-- Result Section -->
+    <div id="result-screen">
+        <div class="card summary-card">
+            <h2>Exam Completed!</h2>
+            <p>Your Final Marks:</p>
+            <div class="summary-score" id="final-score">0.00</div>
+            <p><span id="correct-count">0</span> Correct | <span id="wrong-count">0</span> Incorrect | <span id="skipped-count">0</span> Skipped</p>
+            <br>
+            <button class="btn" onclick="downloadPDF()">Download Response Sheet (PDF)</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden container for generating PDF -->
+<div id="pdf-container" style="display: none; padding: 20px;">
+    <h2 style="text-align: center;">Kerala PSC Practice Exam - Response Sheet</h2>
+    <div id="pdf-score-summary" style="margin-bottom: 20px; text-align: center; font-weight: bold;"></div>
+    <hr>
+    <div id="pdf-questions-list"></div>
+</div>
+
+<script>
+// 100 Questions Data
+const questions = [
+    { id: 1, text: "ബ്രിട്ടീഷുകാർ ഇന്ത്യയിൽ നടപ്പിലാക്കിയ ഭൂനികുതി വ്യവസ്ഥയുമായി ബന്ധപ്പെട്ട തെറ്റായ പ്രസ്താവനകൾ കണ്ടെത്തുക :\n(i) ശാശ്വത ഭൂനികുതി വ്യവസ്ഥ നടപ്പിലാക്കിയത് കോൺവാലീസ് പ്രഭുവാണ്\n(ii) മഹൽവാരി വ്യവസ്ഥയിൽ കർഷകരിൽ നിന്നും നേരിട്ട് നികുതി പിരിച്ചെടുക്കുന്നു\n(iii) റയട്ട്പാരി വ്യവസ്ഥ നടപ്പിലാക്കിയത് ദക്ഷിണേന്ത്യയിലാണ്\n(iv) ശാശ്വത ഭൂനികുതി വ്യവസ്ഥ ഡക്കാണിൽ നടപ്പിലാക്കി", options: ["(A) (ii) ഉം (iv) ഉം തെറ്റാണ്", "(B) എല്ലാം തെറ്റാണ്", "(C) (ii) ഉം (iii) ഉം തെറ്റാണ്", "(D) (i) ഉം (iii) ഉം തെറ്റാണ്"], ans: 0 },
+    { id: 2, text: "യുനസ്കോ സാഹിത്യനഗരമായി പ്രഖ്യാപിച്ച ഇന്ത്യൻ നഗരം ഏത്?", options: ["(A) കോട്ടയം", "(B) കൊൽക്കത്ത", "(C) കോഴിക്കോട്", "(D) ഡൽഹി"], ans: 2 },
+    { id: 3, text: "പി. കുഞ്ഞിരാമൻ നായരുടെ 'പുരളി മലയിലെ പൂമരങ്ങൾ' എന്ന കവിതയിൽ ഏത് ചരിത്ര പുരുഷന്റെ സമരമാണ് പ്രതിപാദിക്കുന്നത്?", options: ["(A) വേലുത്തമ്പി ദളവ", "(B) രാമനമ്പി", "(C) പഴശ്ശിരാജ", "(D) മാർത്താണ്ഡവർമ്മ"], ans: 2 },
+    { id: 4, text: "കേരളത്തിലെ ആദ്യ മന്ത്രിസഭയിലെ മന്ത്രിമാരും വകുപ്പുകളും ചുവടെ കൊടുക്കുന്നു. ശരിയായ ജോഡികൾ തെരഞ്ഞെടുക്കുക. :\n(i) ജോസഫ് മുണ്ടശ്ശേരി : വിദ്യാഭ്യാസം\n(ii) കെ.ആർ. ഗൗരിയമ്മ : ധനകാര്യം\n(iii) സി. അച്യുതമേനോൻ : ആരോഗ്യം\n(iv) വി.ആർ. കൃഷ്‌ണയ്യർ : നിയമം", options: ["(A) എല്ലാം ശരിയാണ്", "(B) (i), (ii), (iii) എന്നിവ ശരിയാണ്", "(C) (i) ഉം (iv) ഉം ശരിയാണ്", "(D) (iii) ഉം (iv) ഉം ശരിയാണ്"], ans: 2 },
+    { id: 5, text: "മഹാത്മാഗാന്ധിയും ശ്രീനാരായണ ഗുരുവും തമ്മിലുള്ള കൂടിക്കാഴ്ചയുമായി ബന്ധപ്പെട്ട ശരിയായ പ്രസ്‌താവനകൾ തെരഞ്ഞെടുക്കുക :\n(i) 1925 മാർച്ച് 12 ന് ഇരുവരും കൂടിക്കാഴ്ച നടത്തി\n(ii) ഗുരുവായൂർ സത്യാഗ്രഹവുമായി ബന്ധപ്പെട്ടായിരുന്നു കൂടിക്കാഴ്ച\n(iii) വർക്കലയിലെ ശിവഗിരി മഠത്തിനടുത്തുള്ള വനജാക്ഷി മന്ദിരത്തിൽ വെച്ചാണ് കണ്ടുമുട്ടിയത്\n(iv) ഗാന്ധിജിയുടെ ആദ്യ കേരള സന്ദർശനത്തിന്റെ ഭാഗമായിട്ടായിരുന്നു ഈ കൂടിക്കാഴ്ച", options: ["(A) (i), (ii), (iv) എന്നിവ ശരിയാണ്", "(B) (i) ഉം (iii) ഉം ശരിയാണ്", "(C) (iii) ഉം (iv) ഉം ശരിയാണ്", "(D) (i) ഉം (iv) ഉം ശരിയാണ്"], ans: 1 },
+    { id: 6, text: "'സാമൂഹ്യ ഉടമ്പടി' (സോഷ്യൽ കോൺട്രാക്ട്) ഏത് ഫ്രഞ്ച് ചിന്തകന്റെ കൃതിയാണ്?", options: ["(A) മൊണ്ടെസ്ക്യൂ", "(B) റൂസ്സോ", "(C) വോൾട്ടയർ", "(D) ടോൾസ്റ്റോയ്"], ans: 1 },
+    { id: 7, text: "ഇന്ത്യൻ ഫലകവും യൂറേഷ്യൻ ഫലകവും ഉൾപ്പെടുന്ന ചലനം ഏത് തരം ഫലകചലനത്തിന് ഉദാഹരണമാണ്?", options: ["(A) പരസ്പരം അകലുന്നത്", "(B) പരസ്പരം അടുക്കുന്നത്", "(C) പരസ്പരം ഉരസി നീങ്ങുന്നത്", "(D) ചലനമില്ല"], ans: 1 },
+    { id: 8, text: "സൂചന 1 : ഈ തീരസമതലം കടലിലേക്ക് ആഴ്ത്തപ്പെട്ട തീരസമതലമാണ്.\nസൂചന 2 : അറബിക്കടലിനും ഉപദ്വീപീയ ഇന്ത്യൻ പീഠഭൂമിക്കും ഇടയിലായി സ്ഥിതിചെയ്യുന്നു\nസൂചനകൾ പ്രകാരമുള്ള തീരസമതലം വ്യാപിച്ച് കിടക്കുന്നത്:", options: ["(A) റാൻ ഓഫ് കച്ചിനും കന്യാകുമാരിക്കുമിടയിൽ", "(B) റാൻ ഓഫ് കച്ചിനും മംഗലാപുരത്തിനുമിടയിൽ", "(C) മഹാനദി ഡെൽറ്റയ്ക്കും കന്യാകുമാരിക്കുമിടയിൽ", "(D) കൃഷ്ണ ഡെൽറ്റയ്ക്കും കന്യാകുമാരിക്കുമിടയിൽ"], ans: 0 },
+    { id: 9, text: "കണ്ണൂർ, ഇടുക്കി ജില്ലകളിലെ ചെങ്കല്ല് നിറഞ്ഞ മലമ്പ്രദേശങ്ങളിൽ ഭൂമി ഇടിഞ്ഞ് താഴ്ന്ന് ഗർത്തങ്ങൾ രൂപീകരിക്കുന്നതിന് കാരണമായ പ്രതിഭാസം:", options: ["(A) സോയിൽ പൈപ്പിങ്ങ്", "(B) ഉരുൾ പൊട്ടൽ", "(C) ശിലാപതനം", "(D) നിക്ഷേപണം"], ans: 0 },
+    { id: 10, text: "മധ്യ പസഫിക്കിലും കിഴക്കൻ പസഫിക്കിലും അസാധാരണമായി സമുദ്രതാപനില ഉയരുന്ന പ്രതിഭാസം :", options: ["(A) സമുദ്രജലപ്രവാഹം", "(B) മൺസൂൺ", "(C) എൽനിനോ", "(D) ലാനിന"], ans: 2 },
+    { id: 11, text: "ചേരുംപടി ചേർക്കുക :\n(a) ഹിമാചൽ ഹിമാലയം - (i) ദാൽ തടാകം\n(b) ഉത്തരാഖണ്ഡ് ഹിമാലയം - (ii) മണികരൺ\n(c) പൂർവ്വാചൽ - (iii) നൈനിതാൽ\n(d) കശ്മീർ ഹിമാലയം - (iv) ലോക്‌തക് തടാകം", options: ["(A) (a)-(ii), (b)-(iii), (c)-(iv), (d)-(i)", "(B) (a)-(iii), (b)-(ii), (c)-(iv), (d)-(i)", "(C) (a)-(i), (b)-(ii), (c)-(iii), (d)-(iv)", "(D) (a)-(ii), (b)-(iv), (c)-(iii), (d)-(i)"], ans: 0 },
+    { id: 12, text: "തന്നിരിക്കുന്നവയിൽ വിനാശകാരിയായ ഭൂകമ്പ തരംഗമേത്?", options: ["(A) പ്രാഥമികം", "(B) ദ്വിതീയം", "(C) പ്രതലം", "(D) ഇവയൊന്നുമല്ല"], ans: 2 },
+    { id: 13, text: "നബാർഡ് (NABARD) നിലവിൽ വന്ന വർഷം ഏതാണ്?", options: ["(A) 1980", "(B) 1982", "(C) 1984", "(D) 1986"], ans: 1 },
+    { id: 14, text: "താഴെ കൊടുത്തിരിക്കുന്നവയിൽ 'റിസർവ്വ് ബാങ്ക് ഓഫ് ഇന്ത്യ'യുമായി ബന്ധപ്പെട്ട ശരിയായ പ്രസ്താവന/പ്രസ്താവനകൾ ഏതൊക്കെ?\n(i) 1935-ൽ സ്ഥാപിതമായി\n(ii) വായ്പകളുടെ സൃഷ്ടാവ് എന്നറിയപ്പെടുന്നു\n(iii) 'ബാങ്കുകളുടെ ബാങ്ക്' എന്നറിയപ്പെടുന്നു\n(iv) 'വിദേശ വിനിമയത്തിന്റെ സൂക്ഷിപ്പുകാരൻ' എന്നറിയപ്പെടുന്നു", options: ["(A) Only (i) & (ii)", "(B) Only (i), (ii), (iii)", "(C) Only (i), (iii) & (iv)", "(D) All the above (മേൽ കൊടുത്തവയെല്ലാം)"], ans: 2 },
+    { id: 15, text: "ഒന്നാം പഞ്ചവത്സര പദ്ധതിയുമായി ബന്ധപ്പെട്ട ശരിയായ പ്രസ്താവന/പ്രസ്താവനകൾ ഏതൊക്കെ?\n(i) വ്യവസായ മേഖലയുടെ വികസനത്തിന് ഊന്നൽ നൽകി\n(ii) കാർഷികമേഖലയുടെ വളർച്ചയായിരുന്നു പ്രധാന ലക്ഷ്യം\n(iii) 1950-55-ൽ നടപ്പിലാക്കി\n(iv) 1951-56 വരെയായിരുന്നു കാലയളവ്", options: ["(A) Only (i) & (ii)", "(B) Only (ii) & (iv)", "(C) Only (ii), (iii) & (iv)", "(D) All the above"], ans: 1 },
+    { id: 16, text: "നിലവിലെ റിസർവ്വ് ബാങ്ക് ഗവർണ്ണർ ആര്?", options: ["(A) സഞ്ജയ് മൽഹോത്ര", "(B) ബിമൽ ജലാൻ", "(C) ശക്തികാന്ത ദാസ്", "(D) രാജ ചെല്ലയ്യ"], ans: 2 },
+    { id: 17, text: "സ്ത്രീപുരുഷ അനുപാതം ഏറ്റവും കൂടിയ ഇന്ത്യൻ സംസ്ഥാനം ഏത്?", options: ["(A) കേരളം", "(B) ഹരിയാന", "(C) രാജസ്ഥാൻ", "(D) ഗോവ"], ans: 0 },
+    { id: 18, text: "'നീതി ആയോഗി'ന്റെ ചെയർപേഴ്‌സൺ സ്ഥാനം വഹിക്കുന്നതാരാണ്?", options: ["(A) പ്രധാനമന്ത്രി", "(B) രാഷ്ട്രപതി", "(C) ധനകാര്യമന്ത്രി", "(D) ഉപരാഷ്ട്രപതി"], ans: 0 },
+    { id: 19, text: "ചോർച്ചാ സിദ്ധാന്തം ആവിഷ്‌കരിച്ച ഇന്ത്യൻ സാമ്പത്തിക ശാസ്ത്രജ്ഞൻ ആര്?", options: ["(A) ജവഹർലാൽ നെഹ്റു", "(B) അമർത്യസെൻ", "(C) ദാദാഭായി നവറോജി", "(D) മൻമോഹൻ സിംഗ്"], ans: 2 },
+    { id: 20, text: "സൈബർ നിയമങ്ങൾ താഴെ പറയുന്നവയിൽ ഏതിലാണ് ഉൾപ്പെടുന്നത്?", options: ["(A) കേന്ദ്ര പട്ടിക", "(B) സംസ്ഥാന പട്ടിക", "(C) സമവർത്തി പട്ടിക", "(D) അവശിഷ്ടാധികാരങ്ങൾ"], ans: 3 },
+    { id: 21, text: "താഴെ തന്നിരിക്കുന്നവയിൽ തെറ്റായ പ്രസ്താവന ഏത്?", options: ["(A) മന്ത്രി അവതരിപ്പിക്കുന്ന ബിൽ ഗവണ്മെന്റ് ബിൽ എന്നറിയപ്പെടുന്നു", "(B) ധന ബില്ലുകൾ തള്ളിക്കളയാൻ രാജ്യസഭയ്ക്ക് അധികാരമുണ്ട്", "(C) പാർലമെന്റ് പാസ്സാക്കിയ ബില്ലുകൾ വീറ്റോ ചെയ്യാൻ രാഷ്ട്രപതിക്ക് അധികാരമുണ്ട്", "(D) പാർലമെന്റ് പാസ്സാക്കിയ ബില്ലുകൾ രാഷ്ട്രപതി ഒപ്പ് വെച്ചാൽ നിയമമാകും"], ans: 1 },
+    { id: 22, text: "രാഷ്ട്രപതി രാജി സമർപ്പിക്കേണ്ടത് ആർക്ക്?", options: ["(A) ഉപരാഷ്ട്രപതിക്ക്", "(B) പ്രധാനമന്ത്രിക്ക്", "(C) സുപ്രീംകോടതി ചീഫ് ജസ്റ്റിസിന്", "(D) ലോക്സഭ സ്പീക്കർക്ക്"], ans: 0 },
+    { id: 23, text: "ചരക്ക് സേവന നികുതി നിലവിൽ വന്ന ഭരണഘടന ഭേദഗതി ഏത്?", options: ["(A) 42", "(B) 73", "(C) 101", "(D) 86"], ans: 2 },
+    { id: 24, text: "ഇന്ത്യയിൽ ആദ്യമായി ഇലക്ട്രോണിക് വോട്ടിംഗ് മെഷീൻ ഉപയോഗിച്ചത് എവിടെ?", options: ["(A) കേരളത്തിലെ പറവൂർ നിയമസഭ മണ്ഡലത്തിൽ", "(B) തമിഴ്‌നാട്ടിലെ മധുരൈ സെൻട്രൽ നിയമസഭ മണ്ഡലത്തിൽ", "(C) പശ്ചിമബംഗാളിലെ പുരുലിയ നിയമസഭ മണ്ഡലത്തിൽ", "(D) ആസാമിലെ സിൽച്ചാർ നിയമസഭ മണ്ഡലത്തിൽ"], ans: 0 },
+    { id: 25, text: "താഴെ പറയുന്നവയിൽ ഭരണഘടന അസംബ്ലിയിലെ ലക്ഷ്യപ്രമേയവുമായി ബന്ധപ്പെട്ട ശരിയായ പ്രസ്താവന ഏത്?", options: ["(A) 1946 ഡിസംബർ 9 ന് ഡോ: സച്ചിദാനന്ദ സിൻഹ ലക്ഷ്യപ്രമേയം അവതരിപ്പിച്ചു", "(B) 1946 ഡിസംബർ 13 ന് ജവഹർലാൽ നെഹ്റു ലക്ഷ്യപ്രമേയം അവതരിപ്പിച്ചു", "(C) 1949 നവംബർ 26 ന് ഡോ: ബി.ആർ. അംബേദ്‌കർ ലക്ഷ്യപ്രമേയം അവതരിപ്പിച്ചു", "(D) 1950 ജനുവരി 26 ന് ഡോ: രാജേന്ദ്ര പ്രസാദ് ലക്ഷ്യപ്രമേയം അവതരിപ്പിച്ചു"], ans: 1 },
+    { id: 26, text: "താഴെ പറയുന്നവയിൽ ഇന്ത്യൻ ഫെഡറലിസത്തിന്റെ സവിശേഷതകളിൽ ഉൾപ്പെടാത്തത് ഏത്?", options: ["(A) അർദ്ധ ഫെഡറൽ സംവിധാനം", "(B) ദ്വിമണ്ഡല നിയമ നിർമ്മാണ സഭ", "(C) ഭരണഘടനയുടെ പരമാധികാരം", "(D) ഇരട്ട പൗരത്വം"], ans: 3 },
+    { id: 27, text: "2026-27-ലെ കേരള ബജറ്റ് പ്രകാരം, സ്കൂൾ കുട്ടികൾ ഉൾപ്പെടെ എല്ലാവർക്കും പ്രഖ്യാപിച്ച പുതിയ പദ്ധതി ഏതാണ്?", options: ["(A) ആരോഗ്യ കിരണം", "(B) സാർവത്രിക ജീവിത, ആരോഗ്യ ഇൻഷുറൻസ്", "(C) സുരക്ഷിത കേരളം", "(D) ജീവൻ രക്ഷാ പദ്ധതി"], ans: 1 },
+    { id: 28, text: "സംസ്ഥാന തണ്ണീർത്തട അതോറിറ്റിയുടെ (SWAK) 'wise use' തത്വം എന്തിനെ സൂചിപ്പിക്കുന്നു?", options: ["(A) തണ്ണീർത്തടങ്ങൾ പൂർണ്ണമായി നശിപ്പിക്കുക", "(B) ആവാസവ്യവസ്ഥയുടെ പ്രവർത്തനം നിലനിർത്തിക്കൊണ്ടുള്ള ഉപയോഗം", "(C) തണ്ണീർത്തടങ്ങളിൽ വ്യാവസായിക പാർക്കുകൾ നിർമ്മിക്കുക", "(D) തണ്ണീർത്തടങ്ങൾ സ്വകാര്യവത്കരിക്കുക"], ans: 1 },
+    { id: 29, text: "കേരളത്തിലെ ഭൂപരിഷ്കരണ നിയമവുമായി ബന്ധപ്പെട്ട താഴെപ്പറയുന്ന പ്രസ്താവനകൾ പരിഗണിക്കുക :\n(i) കേരള ഭൂപരിഷ്കരണ നിയമം 1963-ലാണ് പാസ്സാക്കിയത്\n(ii) നിയമത്തിന്റെ പ്രധാന ലക്ഷ്യങ്ങളിൽ ഒന്നായിരുന്നു ഭൂവുടമസ്ഥതയ്ക്ക് പരിധി (Land Ceiling) ഏർപ്പെടുത്തുക\n(iii) കുടികിടപ്പുകാരുടെ അവകാശങ്ങളും ബാധ്യതകളും നിയമം വ്യവസ്ഥ ചെയ്യുന്നു\n(iv) നിയമത്തിന്റെ ലക്ഷ്യം വൻകിട ഭൂവുടമകളുടെ ഭൂമി വർദ്ധിപ്പിക്കുകയും കൃഷിക്കാരുടെ ഭൂവുടമസ്ഥത കുറയ്ക്കുകയും ചെയ്യുക എന്നതായിരുന്നു\nമുകളിൽ നൽകിയിരിക്കുന്ന പ്രസ്താവനകളിൽ ശരിയായവ ഏവ?", options: ["(A) (i), (ii) മാത്രം", "(B) (i), (ii), (iii), (iv)", "(C) (ii), (iii), (iv) മാത്രം", "(D) (i), (ii), (iii)"], ans: 3 },
+    { id: 30, text: "കേരള സ്റ്റേറ്റ് പബ്ലിക് ഇൻഫർമേഷൻ കമ്മീഷൻ (Kerala State Information Commission) നിലവിൽ വന്ന വർഷം/തീയതി ഏത്?", options: ["(A) 2005 നവംബർ 1", "(B) 2006 ജനുവരി 26", "(C) 2005 ഡിസംബർ 19", "(D) 2005 ഒക്ടോബർ 12"], ans: 2 },
+    { id: 31, text: "കേരള സംസ്ഥാന തിരഞ്ഞെടുപ്പ് കമ്മീഷണർ ആരാണ്?", options: ["(A) എം. എസ്. ജോസഫ്", "(B) എൻ. മോഹൻ ദാസ്", "(C) കെ. ശശിധരൻ നായർ", "(D) എൻ. ശേഷാദ്രീനാഥൻ"], ans: 0 },
+    { id: 32, text: "സംസ്ഥാന പബ്ലിക് സർവ്വീസ് കമ്മീഷനുമായി (State Public Service Commission) ബന്ധപ്പെട്ട താഴെപ്പറയുന്ന പ്രസ്‌താവനകൾ പരിഗണിക്കുക :\n(i) ഓരോ സംസ്ഥാനത്തിനും ഒരു Public Service Commission ഉണ്ടായിരിക്കണമെന്ന് ഭരണഘടനയുടെ Article 315 വ്യവസ്ഥ ചെയ്യുന്നു\n(ii) State Public Service Commission-ന്റെ ചെയർമാനെയും അംഗങ്ങളെയും നിയമിക്കുന്നത് സംസ്ഥാന ഗവർണ്ണറാണ്\n(iii) State Public Service Commission സംസ്ഥാന സിവിൽ സർവീസിലേക്കുള്ള നിയമനത്തിനായി പരീക്ഷകൾ നടത്തുന്നു\n(iv) State Public Service Commission-ലെ അംഗങ്ങളെ നീക്കം ചെയ്യാനുള്ള അധികാരം സംസ്ഥാന ഗവർണ്ണർക്കാണ്\nമുകളിൽ നൽകിയിരിക്കുന്ന പ്രസ്‌താവനകളിൽ ശരിയായവ ഏതെല്ലാം?", options: ["(A) (i), (ii), (iii)", "(B) (i), (iii), (iv)", "(C) (ii), (iii), (iv)", "(D) (i), (ii), (iii), (iv)"], ans: 0 },
+    { id: 33, text: "'ഡിമാൻഡ്-ഡ്രിവൺ' എന്ന പദം MGNREGS-ന് ബാധകമാക്കുമ്പോൾ അതിന്റെ അർത്ഥമെന്ത്?", options: ["(A) നിയമപ്രകാരം ഗ്രാമങ്ങളിൽ തൊഴിൽ ആവശ്യപ്പെടുന്നവർക്ക് തൊഴിൽ നൽകണമെന്ന വ്യവസ്ഥ", "(B) വിദേശ നിക്ഷേപകരുടെ ആവശ്യപ്രകാരം പണി", "(C) പഞ്ചായത്ത് പ്രസിഡൻ്റിൻ്റെ തീരുമാനപ്രകാരം മാത്രം", "(D) കേന്ദ്ര സർക്കാരിൻ്റെ ആവശ്യപ്രകാരം മാത്രം പണി നൽകുക"], ans: 0 },
+    { id: 34, text: "നവജാത ശിശുക്കൾക്ക് ജനനസമയത്ത് നൽകുന്ന പ്രധാന പ്രതിരോധ വാക്‌സിനുകൾ :\n(i) ബി സി ജി\n(ii) ഓ.പി.വി. (സീറോ ഡോസ്)\n(iii) ഹെപ്പറ്റൈറ്റിസ് ബി\n(iv) ഓ.പി.വി.-1", options: ["(A) (i) & (ii)", "(B) (ii) & (iii)", "(C) (iii) & (iv)", "(D) (i), (ii) & (iii)"], ans: 3 },
+    { id: 35, text: "മനുഷ്യരക്തത്തെ സംബന്ധിച്ച ചില വിവരങ്ങളാണ് താഴെ നൽകിയിരിക്കുന്നത്. ശരിയായത് ഏത്?\n(i) A ഗ്രൂപ്പ് രക്തത്തിൽ ആന്റിജൻ A കാണപ്പെടുന്നു\n(ii) Rh ഘടകം ഉള്ള രക്തമാണ് +ve രക്തം\n(iii) AB ഗ്രൂപ്പിനെ സാർവിക ദാതാവ് എന്നറിയപ്പെടുന്നു\n(iv) B-ഗ്രൂപ്പ് രക്തത്തിൽ ആന്റിബോഡി B കാണപ്പെടുന്നു", options: ["(A) (i) & (ii)", "(B) (ii) & (iii)", "(C) (iii) & (iv)", "(D) (ii) & (iv)"], ans: 0 },
+    { id: 36, text: "സിങ്കിന്റെ അഭാവം മൂലം ശരീരത്തിൽ കാണപ്പെടുന്ന ലക്ഷണങ്ങളാണ് :", options: ["(A) ഇരുമ്പിന്റെ ആഗിരണം കുറയുന്നു", "(B) രോഗപ്രതിരോധശേഷി കുറയുന്നു, മുടികൊഴിച്ചിലിനു കാരണമാകുന്നു", "(C) പേശീപ്രവർത്തനവും എല്ലുകളുടെ ആരോഗ്യവും കുറയുന്നു", "(D) ഇവ എല്ലാമാണ്"], ans: 1 },
+    { id: 37, text: "കാൽസിഫെറോൾ എന്നറിയപ്പെടുന്നത് :", options: ["(A) വിറ്റാമിൻ-എ", "(B) വിറ്റാമിൻ-ബി", "(C) വിറ്റാമിൻ-സി", "(D) വിറ്റാമിൻ-ഡി"], ans: 3 },
+    { id: 38, text: "ഇന്ത്യയിലെ ആദ്യത്തെ സോളാർ A.T.M. വാൻ പുറത്തിറക്കിയ സംസ്ഥാനം :", options: ["(A) രാജസ്ഥാൻ", "(B) ഗുജറാത്ത്", "(C) കർണ്ണാടക", "(D) ആന്ധ്രാപ്രദേശ്"], ans: 3 },
+    { id: 39, text: "ഇലക്ഷനുമായി ബന്ധപ്പെട്ട പ്രവർത്തനങ്ങൾ ഏകോപിപ്പിക്കുന്നതിനായി നിർമ്മിച്ച ഡിജിറ്റൽ പ്ലാറ്റ്ഫോം അറിയപ്പെടുന്നത് :", options: ["(A) ഇ-ഇലക്ടർ", "(B) വൺ-വോട്ട്", "(C) ഈസി നെറ്റ്", "(D) ഇവയൊന്നുമല്ല"], ans: 3 },
+    { id: 40, text: "ആവാസവ്യവസ്ഥക്ക് പുറത്ത് ജീവികളെ സംരക്ഷിക്കുന്നതിന് ഒരു ഉദാഹരണമാണ് :\n(i) ജീൻബാങ്കുകൾ\n(ii) കമ്മ്യൂണിറ്റി റിസെർവുകൾ\n(iii) അക്വാറിയം\n(iv) ഇക്കോളജിക്കൽ ഹോട് സ്പോട്സ്", options: ["(A) (i) & (ii)", "(B) (ii) & (iv)", "(C) (i) & (iii)", "(D) (i) & (iv)"], ans: 2 },
+    { id: 41, text: "ഒരാളുടെ രോഗ പ്രതിരോധശേഷി അയാളെ തന്നെ പ്രതികൂലമായി ബാധിക്കുന്നത് മൂലമുണ്ടാകുന്ന രോഗാവസ്ഥയാണ് :", options: ["(A) പേശീ ക്ലമം", "(B) ഓസ്റ്റിയോപോറോസിസ്", "(C) പേശീ ക്ഷയം", "(D) റൂമറ്റോയ്‌ഡ് ആർത്രൈറ്റിസ്"], ans: 3 },
+    { id: 42, text: "ഭൂമിയിൽ ഒരു വസ്തുവിന്റെ പലായനപ്രവേഗം :", options: ["(A) വസ്തുവിന്റെ പിണ്ഡം കൂടുമ്പോൾ കൂടുന്നു", "(B) വസ്തുവിന്റെ പിണ്ഡം കുറയുമ്പോൾ കൂടുന്നു", "(C) വസ്തുവിന്റെ പിണ്ഡത്തെ ആശ്രയിക്കുന്നില്ല", "(D) ഭൂമിയുടെ പിണ്ഡത്തെ ആശ്രയിക്കുന്നില്ല"], ans: 2 },
+    { id: 43, text: "ഐ.എസ്.ആർ.ഒ.യുടെ സഹായത്തോടെ വിക്ഷേപിച്ച ഇന്ത്യയിലെ ആദ്യത്തെ സ്വകാര്യ റോക്കറ്റ് :", options: ["(A) വിക്രം-എസ്", "(B) ആർ.എൽ.വി.", "(C) ഏരിയൻ സ്പേസ്", "(D) എൽ.വി.എം. 3"], ans: 0 },
+    { id: 44, text: "2025 ലെ ഭൗതികശാസ്ത്ര നോബൽ സമ്മാനം ലഭിച്ചത് ഏത് കണ്ടെത്തലിനാണ്?", options: ["(A) ദ്രവ്യത്തിലെ ഇലക്ട്രോൺ ചലനാത്മകതയെക്കുറിച്ചുള്ള പഠനത്തിനായി പ്രകാശത്തിന്റെ അറ്റോസെക്കന്റ് പൾസുകൾ സൃഷ്ടിക്കുന്ന പരീക്ഷണ രീതികൾക്ക്", "(B) ഒരു ഇലക്ട്രിക് സർക്യൂട്ടിലെ മാക്രോസ്കോപിക് ക്വാണ്ടം മെക്കാനിക്കൽ ടണലിംഗും ഊർജ്ജക്വാണ്ടൈസേഷനും കണ്ടെത്തിയതിന്", "(C) ബെൽ അസമത്വങ്ങളുടെ ലംഘനം സ്ഥാപിക്കുന്നതിനും ക്വാണ്ടം വിവരശാസ്ത്രത്തിന് തുടക്കമിടുന്നതിനും, ക്വാണ്ടം എന്റാംഗിൾഡ് ഫോട്ടോണുകളെക്കുറിച്ചുള്ള പരീക്ഷണങ്ങൾക്കും", "(D) കൃത്രിമ ന്യൂറൽ നെറ്റ് വർക്കുകൾ ഉപയോഗിച്ച് മെഷീൻ ലേണിംഗ് സാധ്യമാക്കുന്ന അടിസ്ഥാന കണ്ടെത്തലുകൾക്കും കണ്ടുപിടിത്തങ്ങൾക്കും"], ans: 1 },
+    { id: 45, text: "താഴെ തന്നിരിക്കുന്നവയിൽ ഏത് ആവൃത്തിയിലുള്ള ശബ്ദമാണ് മനുഷ്യന് കേൾക്കാൻ സാധിക്കുന്നത്?", options: ["(A) 3 Hz", "(B) 300 kHz", "(C) 60 kHz", "(D) 2000 Hz"], ans: 3 },
+    { id: 46, text: "ഒരു കൊളോയിഡൽ ദ്രവത്തിലൂടെ പ്രകാശകിരണങ്ങൾ കടന്നുപോകുമ്പോൾ പ്രകാശത്തിന്റെ സഞ്ചാരപാത ദൃശ്യമാകുന്നു. ഈ പ്രതിഭാസമാണ് :", options: ["(A) അപവർത്തനം", "(B) ടിന്റൽ പ്രഭാവം", "(C) പ്രതിഫലനം", "(D) അനുരണനം"], ans: 1 },
+    { id: 47, text: "താഴെ പറയുന്നവയിൽ ഏതാണ് അസമതാന (Heterogeneous) മിശ്രിതം?", options: ["(A) മണലും വെള്ളവും", "(B) പഞ്ചസാര ലായനി", "(C) വായു", "(D) ബ്രാസ്"], ans: 0 },
+    { id: 48, text: "താഴെപ്പറയുന്നവയിൽ ദ്രവ്യത്തിന്റെ അഞ്ചാം അവസ്ഥ ഏതാണ്?", options: ["(A) പ്ലാസ്മ", "(B) ക്വാർക്ക്-ഗ്ലൂവൺ പ്ലാസ്മ", "(C) ബോസ്-ഐൻസ്റ്റീൻ കണ്ടൻസേറ്റ്", "(D) കൊളോയ്ഡ്"], ans: 2 },
+    { id: 49, text: "താഴെപ്പറയുന്നവയിൽ ഏതാണ് യഥാർത്ഥ ലായനിയുടെ ഒരു ഗുണം അല്ലാത്തത്?", options: ["(A) കണങ്ങളുടെ വലുപ്പം 1 nm ൽ കുറവാണ്", "(B) ടിന്റൽ എഫക്ട് കാണിക്കുന്നു", "(C) ഫിൽട്ടർ പേപ്പറിലൂടെ കടന്നുപോകുന്നു", "(D) കണങ്ങൾ അടിഞ്ഞു കൂടുന്നു"], ans: 1 },
+    { id: 50, text: "സെമി കണ്ടക്ടർ ചിപ്പ് നിർമ്മിക്കാൻ ഉപയോഗിക്കുന്ന ഉപലോഹം ഏത്?", options: ["(A) ചെമ്പ്", "(B) സിലിക്കൺ", "(C) സോഡിയം", "(D) കാർബൺ"], ans: 1 },
+    { id: 51, text: "താഴെ പറയുന്നവയിൽ ശരിയായ ഉത്തരം ഏത്?\nAssertion (A) : ആർഗോണിന്റെ ആറ്റോമിസിറ്റി ഒന്നും, ഓസോണിന്റേത് മൂന്നും ആണ്\nReason (R): ആർഗോൺ ഏക ആറ്റോമിക തന്മാത്രയും ഓസോൺ ത്രി ആറ്റോമിക തന്മാത്രയുമാണ്", options: ["(A) (A) യും (R) ഉം ശരിയാണ്, (R) ആണ് (A) യുടെ ശരിയായ വിശദീകരണം", "(B) (A) ശരിയാണ്. പക്ഷെ (R) തെറ്റാണ്", "(C) (A) തെറ്റാണ്. പക്ഷെ (R) ശരിയാണ്", "(D) (A) യും (R) ഉം ശരിയാണ്, പക്ഷെ (R), (A) യുടെ ശരിയായ വിശദീകരണം അല്ല"], ans: 0 },
+    { id: 52, text: "ക്ഷേത്രപ്രവേശന വിളംബരം നടത്തിയ തിരുവിതാംകൂർ രാജാവ് ആരാണ്?", options: ["(A) അനിഴം തിരുനാൾ മാർത്താണ്ടവർമ്മ", "(B) അവിട്ടം തിരുനാൾ ബാലരാമവർമ്മ", "(C) ശ്രീ ചിത്തിര തിരുനാൾ ബാലരാമവർമ്മ", "(D) കാർത്തിക തിരുനാൾ രാമവർമ്മ"], ans: 2 },
+    { id: 53, text: "ദ്രോണാചാര്യ പുരസ്കാരം നേടിയ ആദ്യ മലയാളി ആരാണ്?", options: ["(A) ഒ.എം. നമ്പ്യാർ", "(B) റോബർട്ട് ബോബി ജോർജ്ജ്", "(C) കെ.പി. തോമസ്", "(D) പി. രാധാകൃഷ്ണൻ നായർ"], ans: 0 },
+    { id: 54, text: "“ഇടയ്ക്കു കണ്ണീരുപ്പു പുരട്ടാ തെന്തിനു ജീവിത പലഹാരം” - ഇത് ആരുടെ വരികളാണ്?", options: ["(A) വയലാർ രാമവർമ്മ", "(B) ഒ.എൻ.വി. കുറുപ്പ്", "(C) അക്കിത്തം അച്യുതൻ നമ്പൂതിരി", "(D) ഇടശ്ശേരി ഗോവിന്ദൻ നായർ"], ans: 3 },
+    { id: 55, text: "കലാമണ്ഡലം ഹൈദരലി ഏതു മേഖലയുമായി ബന്ധപ്പെട്ടിരിക്കുന്നു?", options: ["(A) തുള്ളൽ", "(B) കൂത്ത്", "(C) കൂടിയാട്ടം", "(D) കഥകളി"], ans: 3 },
+    { id: 56, text: "2026-ലെ ലോകകപ്പ് ഫുട്ബോളിൽ ജേതാക്കളായ സ്പെയിൻ ഒരേയൊരു ഗോൾ മാത്രമാണ് വഴങ്ങിയത്. സ്പെയിനിനെതിരെ ഗോൾ നേടിയ ടീം ഏതാണ്?", options: ["(A) പോർച്ചുഗൽ", "(B) ഫ്രാൻസ്", "(C) ജർമ്മനി", "(D) ബെൽജിയം"], ans: 1 },
+    { id: 57, text: "തിരുമിറ്റക്കോട് ബാലകൃഷ്ണ‌ൻ ഏതു നോവലിലെ കഥാപാത്രമാണ്?", options: ["(A) തപോമയിയുടെ അച്ഛൻ", "(B) പട്ടുനൂൽപ്പുഴു", "(C) മാതംഗലീല", "(D) മരണവംശം"], ans: 0 },
+    { id: 58, text: "മമ്മൂട്ടിക്ക് നല്ല നടനുള്ള ദേശീയ അവാർഡ് നേടിക്കൊടുത്ത 'ഭ്രമയുഗം' എന്ന സിനിമയുടെ സംവിധായകൻ ആരാണ്?", options: ["(A) ഡൊമനിക് അരുൺ", "(B) രാഹുൽ സദാശിവൻ", "(C) ചിദംബരം എസ്. പൊതുവാൾ", "(D) ജൂഡ് ആന്തണി ജോസഫ്"], ans: 1 },
+    { id: 59, text: "താഴെ തന്നിരിക്കുന്നവയിൽ പോയിന്റിങ്ങ് ഇൻപുട്ട് ഉപകരണം ഏതാണ്?", options: ["(A) വെബ്ക്യാം", "(B) ജോയ്സ്റ്റിക്ക്", "(C) മൈക്രോഫോൺ", "(D) സ്കാനർ"], ans: 1 },
+    { id: 60, text: "മോചനദ്രവ്യം നൽകുന്നത് വരെ കംപ്യൂട്ടറിലെ ഡാറ്റയോ ഫയലുകളോ തടഞ്ഞു വെക്കുന്ന സൈബർ അറ്റാക്കിനെ ______ എന്ന് പറയുന്നു.", options: ["(A) ഫിഷിങ്ങ്", "(B) ഐഡന്റിറ്റി തെഫ്റ്റ്", "(C) റാൻസംവെയർ", "(D) സൂഫിങ്ങ്"], ans: 2 },
+    { id: 61, text: "AI ടൂളുകൾക്ക് നമ്മൾ നൽകുന്ന നിർദേശമോ ചോദ്യമോ ______ എന്ന് അറിയപ്പെടുന്നു.", options: ["(A) പ്രോംപ്റ്റ്", "(B) ടെക്സ്റ്റ്", "(C) കമാൻഡ്", "(D) സെർച്ച് സ്ട്രിംഗ്"], ans: 0 },
+    { id: 62, text: "ഒറ്റയാനെ കണ്ടെത്തുക :", options: ["(A) ചാറ്റ് GPT", "(B) ജെമിനൈ", "(C) ക്ലോഡ്", "(D) ജാവ"], ans: 3 },
+    { id: 63, text: "ഒരു നെറ്റ്വർക്കിന്റെ ഭാഗമായി ഘടിപ്പിക്കപ്പെട്ടിരിക്കുന്ന ഓരോ ഉപകരണത്തെയും പറയുന്ന പേര് :", options: ["(A) സെർവർ", "(B) ക്ലയന്റ്", "(C) നോഡ്", "(D) ബ്രിഡ്‌ജ്‌"], ans: 2 },
+    { id: 64, text: "ദേശീയ മനുഷ്യാവകാശ കമ്മീഷന്റെ ചെയർപേഴ്സൺ ആയി നിയമിക്കുന്നതിന് താഴെ പറയുന്നവരിൽ ആരാണ് യോഗ്യനായ വ്യക്തി?", options: ["(A) ജില്ലാ ജഡ്‌ജി", "(B) ഹൈക്കോടതി ജഡ്ജി", "(C) കുറഞ്ഞത് 20 വർഷമെങ്കിലും പ്രവൃത്തിപരിചയമുള്ള അഭിഭാഷകൻ", "(D) സുപ്രീംകോടതി ജഡ്ജി"], ans: 3 },
+    { id: 65, text: "2005-ലെ ഗാർഹിക പീഢനത്തിൽ നിന്നും സംരക്ഷണം നൽകുന്ന നിയമമനുസരിച്ച് താഴെ പറയുന്ന രണ്ട് പ്രസ്താവനകൾ അപഗ്രഥിച്ചശേഷം ശരിയായ ഉത്തരം നൽകുക :\n1. പീഡനം എന്ന നിർവചനത്തിൽ സാമ്പത്തിക ചൂഷണം ഉൾപ്പെടുന്നു.\n2. ഗാർഹിക പീഡനവുമായി ബന്ധപ്പെട്ട പരാതിയിൽ സാമ്പത്തിക നഷ്ടപരിഹാരം നൽകുന്നതിന് ഉത്തരവ് പുറപ്പെടുവിക്കാവുന്നതാണ്", options: ["(A) പ്രസ്‌താവന 1-ഉം 2-ഉം ശരിയാണ്", "(B) പ്രസ്താവന 1-ഉം 2-ഉം തെറ്റാണ്", "(C) പ്രസ്‌താവന 1 മാത്രം ശരിയാണ്", "(D) പ്രസ്താവന 2 മാത്രം ശരിയാണ്"], ans: 0 },
+    { id: 66, text: "ലൈംഗിക കുറ്റക്യത്യങ്ങളിൽ നിന്നും കുട്ടികളെ സംരക്ഷിക്കുന്ന നിയമം 2012 (POCSO) പ്രകാരം കുട്ടികൾ എന്ന പദത്തിന്റെ നിർവചന പ്രകാരം എത്ര വയസ്സിൽ താഴെയായിരിക്കണം?", options: ["(A) 21", "(B) 16", "(C) 18", "(D) 15"], ans: 2 },
+    { id: 67, text: "എസ്.ഐ.ആർ. എന്ന പദത്തിന്റെ പൂർണ്ണരൂപം എന്ത്?", options: ["(A) സ്പെഷ്യൽ ഇന്ത്യൻ രജിസ്റ്റർ", "(B) സ്പെഷ്യൽ ഇന്റൻസീവ് റിവിഷൻ", "(C) സ്റ്റേറ്റ് ഇന്റേണൽ റിവ്യൂ", "(D) സിസ്റ്റമാറ്റിക് ഇൻവെസ്റ്റിഗേഷൻ റിപ്പോർട്ട്"], ans: 1 },
+    { id: 68, text: "സന്തോഷ് ട്രോഫി ദേശീയ ഫുട്ബോൾ മത്സരവുമായി ബന്ധപ്പെട്ട് താഴെ പറയുന്നവയിൽ ശരിയായത് ഏത്?", options: ["(A) 2025-26 സന്തോഷ് ട്രോഫി ഫൈനലിൽ കേരളം സർവ്വീസസിനോട് പരാജയപ്പെട്ടു", "(B) 2025-26 സന്തോഷ് ട്രോഫി ഫൈനൽ കേരളത്തിൽ നടന്നു", "(C) സന്തോഷ് ട്രോഫി ചരിത്രത്തിൽ കേരളം ഇതുവരെ ജേതാക്കളായിട്ടില്ല", "(D) 2025-26 സന്തോഷ് ട്രോഫിയിൽ ആസ്സാം ജേതാക്കളായി"], ans: 0 },
+    { id: 69, text: "താഴെ പറയുന്നവയിൽ സംസ്ഥാന വിവരാവകാശ കമ്മീഷണറായി നിയമിക്കുന്നതിന് യോഗ്യത മാനദണ്ഡങ്ങളിൽ ഉൾപ്പെടാത്തത് ഏത്?", options: ["(A) നിയമത്തിൽ പ്രാഗൽഭ്യം", "(B) പാർലമെന്റ് മെമ്പറായിരിക്കണം", "(C) ശമ്പളം കൈപ്പറ്റുന്ന ജീവനക്കാരനായിരിക്കരുത്", "(D) രാഷ്ട്രീയ പാർട്ടിയുമായി ബന്ധമുണ്ടാകരുത്"], ans: 1 },
+    { id: 70, text: "ഉപഭോക്ത്യ സംരക്ഷണ നിയമപ്രകാരം ഉപഭോക്താവ് തന്റെ കേസ് ആദ്യമായി സമർപ്പിക്കേണ്ട അധികാരി ആരാണ്?", options: ["(A) ജില്ലാ കോടതി", "(B) സബ് കോടതി", "(C) ജില്ലാ ഉപഭോക്ത്യ തർക്കപരിഹാര കമ്മീഷൻ", "(D) ഹൈക്കോടതി"], ans: 2 },
+    { id: 71, text: "അടുത്ത സംഖ്യ ഏത്?\n1, 2, 11, 38, ____", options: ["(A) 99", "(B) 100", "(C) 102", "(D) 64"], ans: 2 },
+    { id: 72, text: "30 കുട്ടികൾ ഉള്ള ഒരു ക്ലാസ്സിലെ ശരാശരി വയസ്സ് 15. ടീച്ചറുടെ വയസ്സ് കൂടി ചേർന്നപ്പോൾ വയസ്സ് 16 ആയി എങ്കിൽ ടീച്ചറുടെ വയസ്സ് എത്ര?", options: ["(A) 40", "(B) 46", "(C) 50", "(D) 35"], ans: 1 },
+    { id: 73, text: "2, 4, 6, 8, ... 100 വരെയുള്ള ഇരട്ട സംഖ്യകളുടെ തുക എത്ര?", options: ["(A) 1000", "(B) 5050", "(C) 1275", "(D) 2550"], ans: 3 },
+    { id: 74, text: "12, 15, 18 എന്നീ സംഖ്യകൾകൊണ്ട് ഹരിച്ചാൽ 3 ശിഷ്ടം വരുന്ന ഏറ്റവും ചെറിയ സംഖ്യ ഏത്?", options: ["(A) 180", "(B) 120", "(C) 183", "(D) 123"], ans: 2 },
+    { id: 75, text: "കൂട്ടത്തിൽ ചേരാത്തത് ഏത്?\n28, 30, 32, 36, 40", options: ["(A) 28", "(B) 30", "(C) 36", "(D) 40"], ans: 1 },
+    { id: 76, text: "ഒരാളുടെ ശമ്പളം 5% വർദ്ധിച്ചപ്പോൾ 8505 രൂപ ആയി. അയാളുടെ നേരത്തെയുള്ള ശമ്പളം എത്ര?", options: ["(A) 8,000", "(B) 8,100", "(C) 7,500", "(D) 7,000"], ans: 1 },
+    { id: 77, text: "ഒരു ക്ലോക്കിലെ സമയം 12.20 ആണെങ്കിൽ അതിൻ്റെ പ്രതിബിംബത്തിലെ സമയം എത്ര?", options: ["(A) 11.20", "(B) 11.40", "(C) 11.10", "(D) 11.50"], ans: 1 },
+    { id: 78, text: "ഒരാൾ ഒരു ക്യൂവിൽ മുന്നിൽ നിന്ന് 15-ാമതും പിറകിൽ നിന്ന് 10-ാമതും ആണെങ്കിൽ ക്യൂവിൽ ആകെ എത്ര പേർ?", options: ["(A) 25", "(B) 23", "(C) 30", "(D) 24"], ans: 3 },
+    { id: 79, text: "തുടർച്ചയായ രണ്ട് സംഖ്യകളുടെ വർഗ്ഗങ്ങളുടെ വ്യത്യാസം 15 ആയാൽ സംഖ്യകൾ ഏവ?", options: ["(A) 5, 6", "(B) 6, 7", "(C) 7, 8", "(D) 8, 9"], ans: 2 },
+    { id: 80, text: "A ഒരു ജോലി 10 ദിവസം കൊണ്ടും B അതേ ജോലി 15 ദിവസം കൊണ്ടും ചെയ്യുന്നു. A യും B യും കൂടി അതേ ജോലി തീർക്കാൻ എത്ര ദിവസം വേണം?", options: ["(A) 5 ദിവസം", "(B) 6 ദിവസം", "(C) 7 ദിവസം", "(D) 8 ദിവസം"], ans: 1 },
+    { id: 81, text: "Choose the correct option to complete the sentence:\nIf I knew his address ______", options: ["(A) I wrote to him", "(B) I will write to him", "(C) I had written to him", "(D) I would write to him"], ans: 3 },
+    { id: 82, text: "Fill in the blank with suitable question tag :\nWe sell antiques here, ______?", options: ["(A) doesn't we?", "(B) don't we?", "(C) didn't we?", "(D) do we?"], ans: 1 },
+    { id: 83, text: "Change into passive voice:\nA peddler has stolen my books.", options: ["(A) My books have been stolen", "(B) My books are stolen", "(C) My books has been stolen", "(D) My books had been stolen"], ans: 0 },
+    { id: 84, text: "Choose the appropriate phrasal verb to complete the sentence:\nThey decided to ______ the trip because of rain.", options: ["(A) put on", "(B) put off", "(C) put out", "(D) put up with"], ans: 1 },
+    { id: 85, text: "Which among the following is an antonym of the word conceal?", options: ["(A) Hide", "(B) Reveal", "(C) Cover", "(D) Secrete"], ans: 1 },
+    { id: 86, text: "A large group of bees is called:", options: ["(A) team", "(B) swarm", "(C) bunch", "(D) troop"], ans: 1 },
+    { id: 87, text: "A person who hates mankind is called:", options: ["(A) Philanthropist", "(B) Misanthropist", "(C) Misogamist", "(D) Anthropologist"], ans: 1 },
+    { id: 88, text: "The company closure announcement hit the staff like a bolt from the blue. In this sentence 'a bolt from the blue' stands for:", options: ["(A) a pleasant surprise", "(B) an expected event", "(C) a sudden shocking and unexpected piece of news", "(D) a happy piece of news"], ans: 2 },
+    { id: 89, text: "Choose the correct form of the verb:\nHe ______ in the same bus when the accident took place.", options: ["(A) travelled", "(B) has been travelling", "(C) was travelling", "(D) is travelling"], ans: 2 },
+    { id: 90, text: "Fill in the blank using the right preposition :\nHe was accused ______ theft.", options: ["(A) to", "(B) of", "(C) on", "(D) with"], ans: 1 },
+    { id: 91, text: "'നല്ലപോലെ അറിയപ്പെട്ടത്' എന്നയർത്ഥത്തിൽ പ്രയോഗിക്കുന്ന പദമേത്?", options: ["(A) പ്രക്ഷേപം", "(B) പ്രഖ്യാതം", "(C) പ്രഗുണം", "(D) പ്രഘാതം"], ans: 1 },
+    { id: 92, text: "'മിന്നാമിനുങ്ങ്' എന്നർത്ഥം വരുന്ന പദജോഡി ഏത്?", options: ["(A) സാരമേയം-ശ്വാവ്", "(B) ശുകം-കീരം", "(C) ഖദ്യോതം-തൈജസ കീടം", "(D) വമി-പിപീലിക"], ans: 2 },
+    { id: 93, text: "'ആർജ്ജവം' എന്ന പദത്തിൻ്റെ വിപരീത പദം ഏത്?", options: ["(A) തീക്ഷ്‌ണം", "(B) ശുഷ്‌കം", "(C) പരിഷ്കൃതം", "(D) കൗടില്യം"], ans: 3 },
+    { id: 94, text: "'അനുയോജ്യമായ സമയമെത്തുക' എന്നയർത്ഥത്തിൽ ഉപയോഗിക്കുന്ന ശൈലി?", options: ["(A) കാലമാവുക", "(B) കാലമടയുക", "(C) കാകതാലീയം", "(D) കലാശം ചവിട്ടുക"], ans: 0 },
+    { id: 95, text: "ചേർത്തെഴുതുക : ആയുസ് + ദൈർഘ്യം =", options: ["(A) ആയുസ്ദൈർഘ്യം", "(B) ആയുർദൈർഘ്യം", "(C) ആയുഃദൈർഘ്യം", "(D) ആയുൻദൈർഘ്യം"], ans: 1 },
+    { id: 96, text: "പൂജകബഹുവചനത്തിന് ഉദാഹരണമല്ലാത്തതേത്?", options: ["(A) കാരണവർ", "(B) വൈദ്യർ", "(C) കണിയാർ", "(D) സേവകർ"], ans: 3 },
+    { id: 97, text: "Authoritative Opinion എന്നതിന്റെ ശരിയായ പരിഭാഷയേത്?", options: ["(A) അധികാരഭാഷ", "(B) അധികാരപ്രമത്തത", "(C) ആധികാരികനിർദ്ദേശം", "(D) ആധികാരികാഭിപ്രായം"], ans: 3 },
+    { id: 98, text: "'ഇംഗാലം' എന്ന പദത്തിന്റെ അർത്ഥം:", options: ["(A) കരി", "(B) തീ", "(C) കല്ല്", "(D) പുക"], ans: 0 },
+    { id: 99, text: "താഴെക്കൊടുത്തിരിക്കുന്നവയിൽ ശരിയായ പദമേത്?", options: ["(A) കണ്ടുപിടുത്തം", "(B) പാദസരം", "(C) അനുഗൃഹീതൻ", "(D) ഉത്ഘാടനം"], ans: 1 },
+    { id: 100, text: "തെറ്റായ വാക്യപ്രയോഗം ഏത്?", options: ["(A) നിങ്ങളത് പറയാൻവേണ്ടി തയ്യാറാകണം", "(B) അവർക്ക് വേണ്ടത്ര പോഷകാഹാരം ലഭിച്ചിരിക്കണം", "(C) ഉദ്ദേശം ഇരുപത് കടകൾ അവിടെയുണ്ട്", "(D) ഇവിടത്തെ ചർച്ചാവിഷയം വളരെ പ്രധാനമാണ്"], ans: 0 }
+];
+
+let currentIndex = 0;
+let userAnswers = new Array(questions.length).fill(null);
+
+function loadQuestion(index) {
+    const q = questions[index];
+    document.getElementById("q-number").innerText = `Question ${index + 1} of ${questions.length}`;
+    document.getElementById("q-text").innerText = q.text;
+
+    const grid = document.getElementById("options-grid");
+    grid.innerHTML = "";
+
+    const userSel = userAnswers[index];
+
+    q.options.forEach((optText, i) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.innerText = optText;
+
+        if (userSel !== null) {
+            btn.disabled = true;
+            if (i === q.ans) {
+                btn.classList.add("correct");
+            }
+            if (userSel === i && userSel !== q.ans) {
+                btn.classList.add("wrong");
+            }
+        } else {
+            btn.onclick = () => selectOption(i);
+        }
+
+        grid.appendChild(btn);
+    });
+
+    document.getElementById("prev-btn").disabled = (index === 0);
+    if (index === questions.length - 1) {
+        document.getElementById("next-btn").style.display = "none";
+        document.getElementById("submit-btn").style.display = "block";
+    } else {
+        document.getElementById("next-btn").style.display = "block";
+        document.getElementById("submit-btn").style.display = "none";
+    }
+}
+
+function selectOption(optIndex) {
+    userAnswers[currentIndex] = optIndex;
+    updateStats();
+    loadQuestion(currentIndex);
+}
+
+function navigate(direction) {
+    currentIndex += direction;
+    loadQuestion(currentIndex);
+}
+
+function calculateScore() {
+    let correct = 0;
+    let wrong = 0;
+    let attempted = 0;
+
+    userAnswers.forEach((ans, i) => {
+        if (ans !== null) {
+            attempted++;
+            if (ans === questions[i].ans) {
+                correct++;
+            } else {
+                wrong++;
+            }
+        }
+    });
+
+    const score = (correct * 1) - (wrong * (1 / 3));
+    return {
+        score: score.toFixed(2),
+        correct,
+        wrong,
+        skipped: questions.length - attempted,
+        attempted
+    };
+}
+
+function updateStats() {
+    const stats = calculateScore();
+    document.getElementById("stat-attempted").innerText = stats.attempted;
+    document.getElementById("stat-score").innerText = stats.score;
+}
+
+function finishQuiz() {
+    const stats = calculateScore();
+    document.getElementById("quiz-screen").style.display = "none";
+    document.getElementById("result-screen").style.display = "block";
+    document.getElementById("final-score").innerText = stats.score;
+    document.getElementById("correct-count").innerText = stats.correct;
+    document.getElementById("wrong-count").innerText = stats.wrong;
+    document.getElementById("skipped-count").innerText = stats.skipped;
+}
+
+function generatePDFContainer() {
+    const stats = calculateScore();
+    const summaryDiv = document.getElementById("pdf-score-summary");
+    summaryDiv.innerHTML = `
+        <p>Total Questions: ${questions.length} | Attempted: ${stats.attempted} | Correct: ${stats.correct} | Incorrect: ${stats.wrong}</p>
+        <p style="font-size: 16px;">Final Mark: <b>${stats.score}</b> / 100</p>
+    `;
+
+    const listDiv = document.getElementById("pdf-questions-list");
+    listDiv.innerHTML = "";
+
+    questions.forEach((q, i) => {
+        const userSel = userAnswers[i];
+        let statusText = "Unattempted";
+        let marks = "0.00";
+        let userOptText = "None";
+
+        if (userSel !== null) {
+            userOptText = q.options[userSel];
+            if (userSel === q.ans) {
+                statusText = "Correct";
+                marks = "+1.00";
+            } else {
+                statusText = "Incorrect";
+                marks = "-0.33";
+            }
+        }
+
+        const qElem = document.createElement("div");
+        qElem.className = "pdf-q";
+        qElem.innerHTML = `
+            <div class="pdf-q-title">Q${i + 1}: ${q.text.replace(/\n/g, '<br>')}</div>
+            <div class="pdf-ans">
+                <strong>Selected Option:</strong> ${userOptText}<br>
+                <strong>Correct Option:</strong> ${q.options[q.ans]}<br>
+                <strong>Status:</strong> ${statusText} | <strong>Marks Allotted:</strong> ${marks}
+            </div>
+        `;
+        listDiv.appendChild(qElem);
+    });
+}
+
+function downloadPDF() {
+    generatePDFContainer();
+    const element = document.getElementById("pdf-container");
+    element.style.display = "block";
+
+    const opt = {
+        margin:       10,
+        filename:     'PSC_Exam_Response_Sheet.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.display = "none";
+    });
+}
+
+// Initial Load
+loadQuestion(0);
+</script>
+
+</body>
+</html>
